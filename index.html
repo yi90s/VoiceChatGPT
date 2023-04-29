@@ -23,29 +23,17 @@
     </form>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
-      var socket = io();
-    </script>
-    <script>
         var socket = io();
 
-        var messages = document.getElementById('messages');
-        var form = document.getElementById('form');
-        var input = document.getElementById('input');
+        form.addEventListener('submit', (event) => {
+        event.preventDefault();
 
-        form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        if (input.value) {
-            socket.emit('chat message', input.value);
-            input.value = '';
-        }
-        });
+        const formData = new FormData(event.target);
+        const message = document.getElementById('input').value;
 
-        socket.on('chat message', function(msg) {
-        var item = document.createElement('li');
-        item.textContent = msg;
-        messages.appendChild(item);
-        window.scrollTo(0, document.body.scrollHeight);
-        });
+        socket.emit('message', message);
+        // Do something with the form data, such as sending it to a server
+      });
     </script>
   </body>
 </html>

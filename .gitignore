@@ -1,1 +1,4 @@
 node_modules
+.vscode/
+app.log
+ecosystem.config.cjs
