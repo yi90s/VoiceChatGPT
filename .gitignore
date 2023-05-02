@@ -1,4 +1,5 @@
-node_modules
+dist/
 .vscode/
+node_modules
 app.log
-ecosystem.config.cjs
+.DS_Store
