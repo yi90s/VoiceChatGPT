@@ -8,7 +8,7 @@ export default class Transcriber {
 		this.client = client;
 	}
 
-	public async transcribe(audioFile: File): Promise<string> {
+	public async transcribe(audioFile: Blob): Promise<string> {
 		return await this.client.transcribe(audioFile);
 		
 	}

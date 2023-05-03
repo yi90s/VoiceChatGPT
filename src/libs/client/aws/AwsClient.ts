@@ -1,66 +1,76 @@
 import Client from "@libs/client/Client";
-import AWS from 'aws-sdk';
+import { TranscribeClient, StartTranscriptionJobCommand } from '@aws-sdk/client-transcribe';
+import { S3Client, PutObjectCommand, GetObjectCommand, GetObjectCommandOutput } from '@aws-sdk/client-s3';
+import path from 'path'
 
 export default class AwsClient implements Client{
-    private s3Client: AWS.S3;
-    private transClient: AWS.TranscribeService;
+    private s3Client: S3Client;
+    private transClient: TranscribeClient;
 
-    constructor(accessKey: string, secretKey: string){
-        const region = 'us-east-01'
-        AWS.config.update({
-            accessKeyId: accessKey,
-            secretAccessKey: secretKey,
-            region: region
-          });
+    constructor(){
+        const region = 'us-east-1'
 
-        this.s3Client = new AWS.S3();
-        this.transClient = new AWS.TranscribeService();
+        this.s3Client = new S3Client({region: region});
+        this.transClient = new TranscribeClient({region: region});
     }
 
-    public async transcribe(audioFile: Blob|ArrayBuffer): Promise<string> {
+    public async transcribe(audioFile: Blob): Promise<string> {
         const bucketName = 'voice-record-01';
         const fileName = "random";
         
         this.putObject(bucketName, fileName, audioFile);
-        this.sendTranscription(this.buildS3Uri(bucketName, fileName));
+        const transcriptS3Uri: string = await this.startTranscription(this.buildS3Uri(bucketName, fileName), 'transcript_random');
+
+        const [bucket, ...keyParts] = transcriptS3Uri.substring(5).split('/');
+        const objectKey = keyParts.join('/');
+        const resp = await ((await this.getObject(bucket, objectKey)).Body?.transformToString());
+        if (resp != null){
+            return JSON.parse(resp).results.transcripts[0]
+        }
+
         throw new Error("Method not implemented.");
     }
 
     
-    private putObject(bucketName: string, objectKey: string, data: AWS.S3.Body): void{
+    private async putObject(bucketName: string, objectKey: string, data: Blob): Promise<void>{
         const params = {
             Bucket: bucketName,
             Key: objectKey,
             Body: data
         }
-        this.s3Client.putObject(params);
+
+        const command = new PutObjectCommand(params);
+
+        await this.s3Client.send(command);
     }
 
-    private getObject(bucketName: string, objectKey: string): object{
+    private async getObject(bucketName: string, objectKey: string): Promise<GetObjectCommandOutput>{
         const params = {
             Bucket: bucketName,
             Key: objectKey
         }
-        const object: object = this.s3Client.getObject(params);
 
-        return object;
+        const command = new GetObjectCommand(params);
+
+        return await this.s3Client.send(command);
     }
     
-    private sendTranscription(s3Uri: string): void{
+    private async startTranscription(audioS3Uri: string, transcriptionJobName: string): Promise<string>{
+        const outBucketName = 'voice-record-01';
 
         const params = {
-            TranscriptionJobName: 'my-transcription-job',
-            LanguageCode: 'en-US',
+            TranscriptionJobName: transcriptionJobName,
+            IdentifyLanguage: true,
             MediaFormat: 'mp3',
             Media: {
-                MediaFileUri: s3Uri
+                MediaFileUri: audioS3Uri
             },
-            OutputBucketName: 'voice-record-01'
+            OutputBucketName: outBucketName
         }
-
-        const resp = this.transClient.startTranscriptionJob(params);
-
-        return ;
+        const command = new StartTranscriptionJobCommand(params);
+        
+        await this.transClient.send(command);
+        return this.buildS3Uri(outBucketName, transcriptionJobName+'.json');
     }
 
     private buildS3Uri(bucketName: string, objectKey: string){

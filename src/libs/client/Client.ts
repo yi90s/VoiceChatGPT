@@ -1,3 +1,3 @@
 export default interface Client{
-    transcribe(audioFile: Buffer | File): Promise<string>
+    transcribe(audioFile: Blob): Promise<string>
 }
