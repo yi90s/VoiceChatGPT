@@ -1,12 +1,25 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-import "module-alias/register";
-import fs from 'fs'
-import Transcriber  from '@libs/transcribe/Transcriber';
-import OpenAiClient from '@libs/client/open-ai/OpenAiClient';
+import { S3Client, GetObjectCommand, GetObjectCommandOutput } from "@aws-sdk/client-s3";
+import { Response } from "aws-sdk";
+import {createWriteStream} from 'fs'
+import {Readable} from 'stream'
 
-const trans: Transcriber = new Transcriber(new OpenAiClient('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'));
+const region = 'us-east-1'
 
-const file: File = fs.createReadStream('./test/resource/test-audio.mp3') as any;
-// const transcript: string = trans.transcribe(file);
+const s3Client = new S3Client({region: region});
 
-// console.log(transcript);
+
+function getObject(bucketName: string, objectKey: string){
+    const params = {
+        Bucket: bucketName,
+        Key: objectKey
+    }
+
+    const command = new GetObjectCommand(params);
+    return s3Client.send(command);
+}
+
+const resp = getObject('voice-record-01', 'transcript_be94e383-f77b-4964-a6d8-acb85e2a76b4.json');
+
+resp.then()
+
