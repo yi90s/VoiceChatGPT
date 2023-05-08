@@ -1,16 +1,21 @@
 import Client from "@libs/client/Client";
-import { TranscribeClient, StartTranscriptionJobCommand, LanguageCode } from '@aws-sdk/client-transcribe';
-import { S3Client, PutObjectCommand, GetObjectCommand, GetObjectCommandOutput } from '@aws-sdk/client-s3';
+import { TranscribeClient, StartTranscriptionJobCommand, LanguageCode, StartTranscriptionJobCommandOutput } from '@aws-sdk/client-transcribe';
+import { S3Client, PutObjectCommand, GetObjectCommand, GetObjectCommandOutput, PutObjectCommandOutput } from '@aws-sdk/client-s3';
 import path from 'path'
 import { uuid } from 'uuidv4';
 import logger from '@src/libs/logging/logger'
-import { log } from "winston";
+import {Readable} from 'stream'
+import fs from 'fs'
 
 export default class AwsClient implements Client{
+    private static S3_BUCKET_NAME = 'voice-chat-gpt';
+    private static S3_AUDIO_DIR = 'audio';
+    private static S3_TRANSCRIPT_DIR = 'transcript';
     private s3Client: S3Client;
     private transClient: TranscribeClient;
 
     constructor(){
+        //TODO: move it to configuration
         const region = 'us-east-1'
 
         this.s3Client = new S3Client({region: region});
@@ -18,28 +23,24 @@ export default class AwsClient implements Client{
     }
 
     public async transcribe(audioFile: Blob): Promise<string> {
-        const bucketName = 'voice-record-01';
         const guid = uuid();
-        const audioFileName = `audio_${guid}.mp3`;
+        const audioFileName = `${guid}.mp3`;
+        const audioFileObjectKey = `${AwsClient.S3_AUDIO_DIR}/${audioFileName}`;
         const transcriptionJobName = `transcript_${guid}`;
         
-        await this.putObject(bucketName, audioFileName, audioFile);
-        const transcriptS3Uri: string = await this.startTranscription('s3://voice-record-01/audio_8d2f1680-ae6b-41d8-98d8-d3882e19699f.mp3', transcriptionJobName);
-
-        const [bucket, ...keyParts] = transcriptS3Uri.substring(5).split('/');
-        const objectKey = keyParts.join('/');
-        const resp: GetObjectCommandOutput = await this.getObject(bucket, objectKey);
+        const putResp = await this.putObject(AwsClient.S3_BUCKET_NAME, audioFileObjectKey, audioFile);
+        // const transResp = await this.startTranscription(this.buildS3Uri(AwsClient.S3_BUCKET_NAME,audioFileObjectKey), transcriptionJobName);
+        // const getResp: GetObjectCommandOutput = await this.getObject(AwsClient.S3_BUCKET_NAME, transcriptionJobName+'.json');
         
-        if (resp.Body){
-            const transcriptResp = JSON.parse(resp.Body.toString());
-            return transcriptResp.results.transcripts[0]
-        }
+        // if (getResp.Body){
+        //     (getResp.Body as Readable).pipe(fs.createWriteStream('./test.json'));
+        // }
 
-        throw new Error("Method not implemented.");
+        return '123';
     }
 
     
-    private async putObject(bucketName: string, objectKey: string, data: Blob): Promise<void>{
+    private async putObject(bucketName: string, objectKey: string, data: Blob): Promise<PutObjectCommandOutput>{
         const params = {
             Bucket: bucketName,
             Key: objectKey,
@@ -48,7 +49,7 @@ export default class AwsClient implements Client{
 
         const command = new PutObjectCommand(params);
         logger.info(`Sending object to ${this.buildS3Uri(bucketName, objectKey)}`);
-        await this.s3Client.send(command);
+        return await this.s3Client.send(command);
     }
 
     private async getObject(bucketName: string, objectKey: string): Promise<GetObjectCommandOutput>{
@@ -62,9 +63,7 @@ export default class AwsClient implements Client{
         return await this.s3Client.send(command);
     }
     
-    private async startTranscription(audioS3Uri: string, transcriptionJobName: string): Promise<string>{
-        const outBucketName = 'voice-record-01';
-
+    private async startTranscription(audioS3Uri: string, transcriptionJobName: string): Promise<StartTranscriptionJobCommandOutput>{
         const params = {
             TranscriptionJobName: transcriptionJobName,
             LanguageCode: LanguageCode.EN_US,
@@ -72,13 +71,12 @@ export default class AwsClient implements Client{
             Media: {
                 MediaFileUri: audioS3Uri
             },
-            OutputBucketName: outBucketName
+            OutputBucketName : AwsClient.S3_BUCKET_NAME,
+            OutputKey: AwsClient.S3_TRANSCRIPT_DIR
         }
         const command = new StartTranscriptionJobCommand(params);
         logger.info(`Starting transcription ${transcriptionJobName} for audio ${audioS3Uri}}`);
-        await this.transClient.send(command);
-        
-        return this.buildS3Uri(outBucketName, transcriptionJobName+'.json');
+        return await this.transClient.send(command);
     }
 
     private buildS3Uri(bucketName: string, objectKey: string){
