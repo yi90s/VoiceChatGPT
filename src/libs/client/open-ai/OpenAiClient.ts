@@ -1,8 +1,7 @@
 import { Configuration, OpenAIApi } from "openai"
-import logger from "@libs/logging/logger";
-import Client from "@libs/client/Client";
+import { ChatClient } from "@src/libs/chat/Chat";
 
-export default class OpenAiClient implements Client{
+export default class OpenAiClient implements ChatClient{
     private openai: OpenAIApi;
 
     constructor(apiKey: string){
@@ -10,13 +9,19 @@ export default class OpenAiClient implements Client{
         this.openai = new OpenAIApi(configuration);
     }
 
-    public async transcribe(audioFile: File): Promise<string>{
-        try{
-            const resp = await this.openai.createTranscription(audioFile, 'wisper-1');
-            return resp.data.text
-        }catch(err){
-            logger.error(`Error transcribing audio: ${err}`);
-            throw err
+    async getTextReply(message: string): Promise<string> {
+        const resp = await this.openai.createChatCompletion({
+            model: "text-curie-001",
+            messages: [{role: "user", content: message}],
+        });
+        
+        const reply = resp.data.choices.pop();
+
+        if(reply && reply.message){
+            return reply.message.content;   
         }
+
+        throw EvalError('Getting empty response from OpenAI chat completion endpoint')
     }
+
 }

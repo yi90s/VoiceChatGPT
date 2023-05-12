@@ -29,7 +29,8 @@
 	"scripts": {
 		"build": "npm run build:typescript",
 		"build:typescript": "tsc",
-		"start": "npm run build && node dist/index.js"
+		"restart": "npm run build & npm run",
+		"run": "node dist/index.js"
 	},
 	"_moduleAliases": {
 		"@src": "dist/",

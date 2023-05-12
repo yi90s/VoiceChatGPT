@@ -1,13 +1,9 @@
-import Client from "@libs/client/Client";
 import { TranscribeClient, StartTranscriptionJobCommand, LanguageCode, StartTranscriptionJobCommandOutput } from '@aws-sdk/client-transcribe';
 import { S3Client, PutObjectCommand, GetObjectCommand, GetObjectCommandOutput, PutObjectCommandOutput } from '@aws-sdk/client-s3';
-import path from 'path'
 import { uuid } from 'uuidv4';
 import logger from '@src/libs/logging/logger'
-import {Readable} from 'stream'
-import fs from 'fs'
 
-export default class AwsClient implements Client{
+export default class AwsClient{
     private static S3_BUCKET_NAME = 'voice-chat-gpt';
     private static S3_AUDIO_DIR = 'audio';
     private static S3_TRANSCRIPT_DIR = 'transcript';

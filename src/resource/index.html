@@ -34,6 +34,31 @@
         socket.emit('message', message);
         // Do something with the form data, such as sending it to a server
       });
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      function startSpeechRecognition() {
+          if (!SpeechRecognition) {
+              alert('Speech Recognition is not supported in this browser. Please try using Google Chrome.');
+              return;
+          }
+
+          const recognition = new SpeechRecognition();
+          recognition.lang = 'en-US';
+          recognition.interimResults = false;
+          recognition.maxAlternatives = 1;
+
+          recognition.start();
+
+          recognition.onresult = (event) => {
+              const text = event.results[0][0].transcript;
+              console.log('You said:', text);
+              // Process the speech-to-text result, e.g., send it to your server or display it on the page
+          };
+
+          recognition.onerror = (event) => {
+              console.error('Error occurred in recognition:', event.error);
+          };
+      }
     </script>
+    <button onclick="startSpeechRecognition()">Start Speech Recognition</button>
   </body>
 </html>
